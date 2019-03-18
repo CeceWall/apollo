@@ -108,3 +108,7 @@ NaN（Not a Number）与任何对象比较都`false`，对NaN的比较要使用M
 对于不支持Math.isNaN方法的浏览器，可以使用[polyfill](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN#Polyfill)（为旧浏览器提供它不支持的新功能的代码称为polyfill）解决
 {% endhint %}
 
+#### JS中的this指向问题
+
+与Java中this永远指向创建对象不同的是，
+
