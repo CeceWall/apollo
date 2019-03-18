@@ -1,5 +1,5 @@
 # Table of contents
 
 * [CSS](README.md)
-* [Javascript](untitled.md)
+* [Javascript](javascript.md)
 
