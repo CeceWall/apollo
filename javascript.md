@@ -110,5 +110,67 @@ NaN（Not a Number）与任何对象比较都`false`，对NaN的比较要使用M
 
 #### JS中的this指向问题
 
-与Java中this永远指向创建对象不同的是，
+JS中也存在this关键字，但是与Java中永远指向当前对象不同的是，JS中this的指向不是那么的直观。
+
+首先，方法在JS中是[第一类对象](https://zh.wikipedia.org/wiki/%E7%AC%AC%E4%B8%80%E9%A1%9E%E7%89%A9%E4%BB%B6)，因此函数可以作为参数传递，可以赋值给变量、也可以作为函数的返回值。
+
+在此基础上，`this`的指向，实际上是在函数调用时才决定的。
+
+```javascript
+function Bar() {
+    this.a = 1;
+}
+
+Bar.prototype.foo = function () {
+    console.log(this.a);
+}
+
+
+const foo = bar.foo;
+foo()                    // 输出undefined
+```
+
+{% hint style="info" %}
+在[严格模式](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Strict_mode)中上面的代码会抛出异常
+{% endhint %}
+
+绝大多数情况下，JS中的`this`指向执行函数时所处的对象，参考下面的代码
+
+```javascript
+const obj = {
+    a: 1,
+    b: {
+        bar: function(callback) {
+            callback() // this在这里确定，执行callback时没有指向任何对象，非严格模式下指向window
+        }
+    },
+    foo: function() {
+        // this不在这里确定
+        console.log(this.a)
+    }
+}
+
+obj.foo() // this在此确定，指向obj
+obj.b.bar(obj.foo) // 对于obj.foo来说this在真正执行时确定，也就是第5行
+const foo = obj.foo;
+foo() // foo没有指向任何对象，非严格模式下，this指向window
+
+```
+
+{% hint style="warning" %}
+从JS的规范上解释的话，上面的说法是不严谨的，下面的代码中`(false || obj.foo)`返回obj.foo，但是代码执行的结果与上面却不一样。有兴趣的可以参考[从EcmaScript规范解读this](https://github.com/mqyqingfeng/Blog/issues/7)
+{% endhint %}
+
+```javascript
+const obj = {
+    a: 1,
+     foo: function() {
+        // this不在这里确定
+        console.log(this.a)
+    }
+}
+obj.foo()             // this指向obj
+(false || obj.foo)() // 非严格模式下，this指向window
+
+```
 
