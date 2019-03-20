@@ -67,7 +67,7 @@ function foo() {
     // 取消下一句的注释会抛出异常，const和let声明的变量不存在变量提升
     // console.log(a); 
     const a = 'a';
-    for(let a = 0;a < 3; a+=1){ // 这里声明了块级变量a， 会覆盖上面的a变量
+    for(let a = 0;a < 3;a += 1){ // 这里声明了块级变量a, 在下面的块中无法访问外部的a变量
         console.log(a) // 会分别输出1, 2, 3
     }
     // 取消下面的注释会抛出异常，const声明的是常量，不允许重新赋值
@@ -101,7 +101,7 @@ NaN === NaN // false
 ```
 
 {% hint style="warning" %}
-NaN（Not a Number）与任何对象比较都`false`，对NaN的比较要使用Math.isNaN方法
+NaN（Not a Number）与任何对象比较都`false`，对NaN的比较要使用Number.isNaN方法
 
 需要注意的是JS中存在一个全局的isNaN方法（对，这就是JS中的糟粕），这个方法比较的结果并不可靠，永远都不要使用这个方法比较NaN。
 
