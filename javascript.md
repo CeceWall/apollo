@@ -8,7 +8,11 @@ JavaScript是一个[函数先行](https://developer.mozilla.org/en-US/docs/Gloss
 
 下面我们分别说明这两部分
 
-## JavaScript
+{% hint style="info" %}
+纸上得来终觉浅，随时打开浏览器的控制台或使用nodejs去尝试，还可以在[codepen](https://codepen.io/pen)网站在线编辑
+{% endhint %}
+
+## JavaScript的特殊点
 
 JavaScript本身是一个很简单且不那么严谨的语言（动态且弱类型）
 
@@ -16,13 +20,27 @@ JavaScript本身是一个很简单且不那么严谨的语言（动态且弱类�
 从MDN可以查阅JS内置的[标准库和方法](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects)，需要注意的是，不同浏览器对内置标准库的实现程度不太一致，可以通过MDN文档中的兼容性列表部分查看每个方法的兼容性。
 {% endhint %}
 
-#### JS是动态弱类型语言
+### JS是动态弱类型语言
 
 JS的动态体现在，JS的变量在声明时不需要指定类型。解释器会在赋值时在内部记录变量的类型，并在运行到该行时，动态检查变量的类型。
 
 ```javascript
 var a = 1;
 a.getTime() // 只有运行时才会出错
+```
+
+同时，JS中的函数，也是动态声明的（注意JS中的变量提升）
+
+```javascript
+function foo() {
+    var a = 1;
+    // 在执行foo函数时，bar函数才被声明
+    function bar() {
+        console.log(a);
+    }
+}
+
+foo();
 ```
 
 {% hint style="info" %}
@@ -40,7 +58,7 @@ console.log(a + b); // 输入string类型的'11'
 
 因此写JS的时候要额外注意，避免因类型不同导致的错误
 
-#### `var`、`let`、`const`
+### `var`、`let`、`const`
 
 在JS中，var、let、const都是声明变量的关键字，他们的区别如下
 
@@ -77,7 +95,7 @@ function foo() {
 foo();
 ```
 
-#### `==` 和`===`比较运算符
+### `==` 和`===`比较运算符
 
 在JS中存在两种比较运算符`==`和`===`
 
@@ -108,11 +126,45 @@ NaN（Not a Number）与任何对象比较都`false`，对NaN的比较要使用N
 对于不支持Math.isNaN方法的浏览器，可以使用[polyfill](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN#Polyfill)（为旧浏览器提供它不支持的新功能的代码称为polyfill）解决
 {% endhint %}
 
-#### JS中的this指向问题
+### JS中的类型与字面值
+
+JS中有六种基本类型（es6新增了Symbol类型），除了基本类型以外的类型都是对象（包括Function，Array等）
+
+基本类型如下
+
+* Boolean
+* null
+* undefined
+* String
+* Number
+* Symbol
+
+需要注意的是以下几点
+
+#### 字面值与包装类型
+
+对于基本类型，使用字面值声明的是值类型，与Java中类似，使用`new`关键字声明的是包装原始类型的引用类型，但是JS没有Java中的自动装箱拆箱，为了避免错误，**请只使用字面值声明基本类型**
+
+```javascript
+1 === new Number(1) // false
+1 == new Number(1) // true,这里是因为js自动转换了类型
+new Number(1) === new Number(1) // false, 没有JVM中的缓存机制
+'a' === new String('a') // false 
+```
+
+\*\*\*\*
+
+
+
+
+
+### JS中的this指向问题
 
 JS中也存在this关键字，但是与Java中永远指向当前对象不同的是，JS中this的指向不是那么的直观。
 
 首先，方法在JS中是[第一类对象](https://zh.wikipedia.org/wiki/%E7%AC%AC%E4%B8%80%E9%A1%9E%E7%89%A9%E4%BB%B6)，因此函数可以作为参数传递，可以赋值给变量、也可以作为函数的返回值。
+
+其次，JS中，由`function`关键字声明的函数，在执行时会创建一个属于自己的上下文，上下文中包含当前作用域、this等信息，`this`的指向也是在此时确定。
 
 在此基础上，`this`的指向，实际上是在函数调用时才决定的。
 
@@ -158,7 +210,7 @@ foo() // foo没有指向任何对象，非严格模式下，this指向window
 ```
 
 {% hint style="warning" %}
-从JS的规范上解释的话，上面的说法是不严谨的，下面的代码中`(false || obj.foo)`返回obj.foo，但是代码执行的结果与上面却不一样。有兴趣的可以参考[从EcmaScript规范解读this](https://github.com/mqyqingfeng/Blog/issues/7)
+从JS的规范上解释的话，上面的说法是不严谨的，下面的代码中`(false || obj.foo)`返回obj.foo，但是代码执行的结果与上面却不一样。有兴趣的可以参考[从ECMAScript规范解读this](https://github.com/mqyqingfeng/Blog/issues/7)
 {% endhint %}
 
 ```javascript
@@ -171,6 +223,155 @@ const obj = {
 }
 obj.foo()             // this指向obj
 (false || obj.foo)() // 非严格模式下，this指向window
+```
+
+当`this`没有指向预期的对象时，可以使用下面几种方法解决
+
+### 解决this指向的问题
+
+这三个方法存在于`Function`的原型链上，可以实现调用方法时指定`this`对象
+
+#### 使用[bind](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/bind)绑定
+
+bind包装原来的方法，返回一个绑定方法，调用绑定方法时执行包装函数，通过给bind方法传参，可以指定包装函数的this对象，还可以为包装函数传递参数。
+
+{% hint style="info" %}
+```javascript
+function.bind(thisArg[, arg1[, arg2[, ...]]])
+```
+
+`thisArg`指定包装函数的`this`对象，arg1，arg2等不定参数会按顺序传递给包装函数
+{% endhint %}
+
+```javascript
+function add(a, b) {
+    return a + b;
+}
+const addOne = add.bind(null, 1); // 指定执行add函数时，this对象为null，第一个参数a为1;
+addOne(2); // 3
+
+const obj = {
+    a: 1,
+    increment: function(value) {
+        this.a += value;
+    },
+};
+const increment = obj.increment.bind(obj); // 在执行increment方法时，将this指向obj对象
+setTimeout(function() {
+    increment(10); 
+}, 1000)
+```
+
+#### 使用[call](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/call)、[apply](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/apply)
+
+与bind函数不同的是，`call`、`apply`不再返回一个包装函数，而是直接执行当前函数，这两个函数同样可以指定this对象和为函数传参
+
+他们两个的区别是
+
+* `call`使用不定参数为函数传参
+* `apply`使用数组\(也可以为类数组的对象）为函数传参 
+
+```javascript
+const obj = {
+    a: 1,
+    increment(...values) {
+        for(let i = 0;i < values.length;i += 1) {
+            this.a += values[i];
+        }
+    },
+}
+
+const increment = obj.increment;
+
+increment.call(obj, 2, 3, 4); // 执行increment方法时this指定为obj对象
+increment.apply(obj, [2, 3, 4]);
+
+const array1 = [1, 2, 3];
+const array2 = ['a', 'b', 'c'];
+
+Array.prototype.push.apply(array1, array2); // 将数组array2的元素添加到数组array1中
+```
+
+#### 使用箭头函数
+
+es6中新增加了箭头函数，与`function`关键字声明的函数不同，箭头函数不在执行时确定`this`的指向，相反，箭头函数的`this`在声明时确认，并且在执行时不再改变（bind、apply、call也无法改变）。
+
+{% hint style="warning" %}
+记住JS的动态性，只有在函数执行时，箭头函数才会声明
+{% endhint %}
+
+```javascript
+function Foo() {
+    this.a = 1;
+    // 此函数当成构造函数使用时, this指向构造函数的新对象
+    // 箭头函数在下面声明
+    // 因此箭头函数执行时，this对象永远指向这个新对象
+    setTimeout(() => {
+        console.log(this.a);
+    }, 1000);
+}
+// 下面的函数永远不会按照预期执行
+// 箭头函数声明时，this指向window（严格模式下为undefined）
+Foo.prototype.bar = () => {
+    console.log(this.a);
+}
+```
+
+### JS中的原型链和继承
+
+JS采用了一种叫[原型链](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Inheritance_and_the_prototype_chain)的方式实现对象的继承，这与Java中经典的继承模式有很大的区别，最开始使用时可能感觉这里很难理解
+
+下面简单解释一下原型链和原型链相关的一些概念，一次接触如此多的概念可能会让人迷惑，建议先通篇阅读一遍，当遇到问题时，再结合实际情况阅读此章节。
+
+* 每个对象有一个`__proto__`属性指向该对象的原型对象
+* 在访问对象的属性时，会先依次搜索自身和原型对象中的属性，直到`__proto__`指向`null`
+
+{% hint style="warning" %}
+\`\`[`__proto__`](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/proto)属性初期来自与浏览器的非标准实现，只有到es6时代，才将这个约定俗称的属性制定为标准，因此建议使用[Object.getPrototypeOf](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf)方法代替`__proto__`
+{% endhint %}
+
+#### 构造函数
+
+构造函数的声明与普通函数没有什么区别（箭头函数不能当做构造函数），当一个普通函数使用`new`关键字调用时便称为构造函数。
+
+构造函数有以下特点
+
+* 每个构造函数都有一个`prototype`属性指向一个原型对象
+* 上面的`prototype`对象又有一个`constructor`属性指向构造函数本身
+* 构造函数可以返回一个对象，`new`操作符的返回值将是这个返回的对象，如果不返回或者返回值不是对象
+
+```javascript
+function Foo() {
+    this.a = 1;
+}
+console.log(Foo.prototype) // 指向Foo的原型对象
+console.log(Foo.prototype.constructor === Foo) // true
+
+const foo = new Foo(); // new Foo()返回一个对象，构造函数中的this便是这个对象
 
 ```
+
+`new`关键字执行了以下操作
+
+1. 使用
+
+
+
+## ES6
+
+目前我们称之为JavaScript的语言实际上是由ECMA组织标准化的[ECMAScript](https://zh.wikipedia.org/wiki/ECMAScript)
+
+es6实际上是该组织制定的ECMAScript的第6版，由于是在2015年发布，因此有些地方也叫它ES2015
+
+从es5开始，JS变得越来越严谨，前端的开发也随之走上了工程化、模块化的道路
+
+[ECMAScript 6 入门](https://es6.ruanyifeng.com/)这篇文档是学习es6最好的文档之一
+
+## DOM API
+
+
+
+
+
+
 
