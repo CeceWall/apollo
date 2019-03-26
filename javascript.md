@@ -143,20 +143,20 @@ JS中有六种基本类型（es6新增了Symbol类型），除了基本类型以
 
 #### 字面值与包装类型
 
-对于基本类型，使用字面值声明的是值类型，与Java中类似，使用`new`关键字声明的是包装原始类型的引用类型，但是JS没有Java中的自动装箱拆箱，为了避免错误，**请只使用字面值声明基本类型**
+对于基本类型，使用字面值声明的是值类型，使用`new`关键字声明的是包装原始类型的引用类型，为了避免错误，**请只使用字面值声明基本类型**。同时，由于JS引擎做了特殊处理，基本类型依然可以调用包装类型的方法。
+
+{% hint style="danger" %}
+使用[console](https://developer.mozilla.org/zh-CN/docs/Web/API/Console)相关的API输出非基本类型时会导致被输出的对象无法被[GC](https://zh.wikipedia.org/wiki/%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6_%28%E8%A8%88%E7%AE%97%E6%A9%9F%E7%A7%91%E5%AD%B8%29)，因此，在生产代码中，必须要删除用于调试的console语句（可以使用eslint等语法检查工具协助检查）
+{% endhint %}
 
 ```javascript
 1 === new Number(1) // false
 1 == new Number(1) // true,这里是因为js自动转换了类型
-new Number(1) === new Number(1) // false, 没有JVM中的缓存机制
+new Number(1) === new Number(1) // false
 'a' === new String('a') // false 
+typeof 'a' // string
+typeof new String('a') // object
 ```
-
-\*\*\*\*
-
-
-
-
 
 ### JS中的this指向问题
 
@@ -297,7 +297,7 @@ Array.prototype.push.apply(array1, array2); // 将数组array2的元素添加到
 es6中新增加了箭头函数，与`function`关键字声明的函数不同，箭头函数不在执行时确定`this`的指向，相反，箭头函数的`this`在声明时确认，并且在执行时不再改变（bind、apply、call也无法改变）。
 
 {% hint style="warning" %}
-记住JS的动态性，只有在函数执行时，箭头函数才会声明
+记住JS的动态性，只有在外层函数执行时，箭头函数才会声明
 {% endhint %}
 
 ```javascript
@@ -338,7 +338,7 @@ JS采用了一种叫[原型链](https://developer.mozilla.org/zh-CN/docs/Web/Jav
 
 * 每个构造函数都有一个`prototype`属性指向一个原型对象
 * 上面的`prototype`对象又有一个`constructor`属性指向构造函数本身
-* 构造函数可以返回一个对象，`new`操作符的返回值将是这个返回的对象，如果不返回或者返回值不是对象
+* 使用`new`运算符操作构造函数默认返回一个新对象，这个对象的`__proto__`指向构造函数的`prototype`，在构造函数中返回一个对象的话，可以覆盖这个新对象。
 
 ```javascript
 function Foo() {
@@ -349,11 +349,97 @@ console.log(Foo.prototype.constructor === Foo) // true
 
 const foo = new Foo(); // new Foo()返回一个对象，构造函数中的this便是这个对象
 
+var obj = {}
+function Bar() { return obj; }
+
+new Bar() === obj; // true
 ```
 
 `new`关键字执行了以下操作
 
-1. 使用
+1. 新建了一个对象，并将这个对象的`__proto__`指向`constructor`的`prototype`
+2. 调用构造函数，并将`this`指定成上一步中的新对象（箭头函数无法改变`this`，因此无法成为构造函数）
+3. `new`操作符的返回便是，调用构造函数的结果
+
+```javascript
+function Foo() {
+    this.a = 1;
+}
+
+const proto = {
+    b: 'b',
+    bar: function() {
+        this.b = '2'
+    },
+}
+
+Foo.prototype = proto; // 指定Foo的prototype
+
+const foo = new Foo();
+
+// foo继承自proto
+// 因此形成了foo --> proto --> Object的继承关系
+foo.__proto__ === proto; // true
+Foo.prototype === proto; // true
+proto.__proto__ === Object.prototype; // true
+
+
+```
+
+#### 对象继承
+
+实际工作中，出于性能和内存占用的考虑，会使用如下方式进行继承
+
+{% code-tabs %}
+{% code-tabs-item title="Dog继承Animal" %}
+```javascript
+function Animal(type) {
+    this.type = type;
+}
+
+Animal.prototype.eat = function() {
+    console.log('eat');
+}
+
+function Dog(name) {
+    Animal.call(this, 'Dog'); // 3
+    this.name = name;
+}
+
+const A = Object.create(Animal.prototype); // 仅做演示，实际中可以与下一句合二为一
+Dog.prototype = Object.create(Animal.prototype); // 1
+Dog.prototype.constructor = Dog; // 2
+
+Dog.prototype.bark = function() {
+    console.log(`${this.name} is barking`);
+}
+
+const dog = new Dog('Rocco');
+
+// 下面展示原型链
+dog.hasOwnProperty('name') // true
+dog.hasOwnProperty('type') // 4，true
+dog.__proto__ === A; // true
+A.hasOwnProperty('bark') // true
+A.__proto__ === Animal.prototype // true
+Animal.prototype.hasOwnProperty('eat'); // true
+
+dog instanceof Dog // true
+dog instanceof Animal // true
+```
+{% endcode-tabs-item %}
+{% endcode-tabs %}
+
+{% hint style="info" %}
+上面使用了[Object.create](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/create)创建新的原型对象，在其他文档里可能介绍了使用空对象的方法创造原型对象
+{% endhint %}
+
+简单解释一下上面的代码
+
+1. `Object.create`会创造一个新的对象，并将这个对象的`__proto__`设置为参数对象（可以理解为`new`操作符的第1步），我们假设这个对象为A
+2. 默认情况下`Dog.prototype.constructor === Dog`（查看构造函数的特点），但是目前Dog.prototype指向A对象，而A对象的`constructor`属性目前不指向Dog，因此我们需要修复他们之间的关系。
+3. 调用父类的构造函数，起到初始化父类实例变量的作用
+4. 由于使用call函数指定了this，因此，这些实例变量实际属于Dog类的实例
 
 
 
